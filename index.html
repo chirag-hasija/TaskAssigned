@@ -79,6 +79,13 @@
                 (decodedText) => {
                     html5QrCode.stop(); // Stop scanning after detecting QR code
                     qrResult.innerHTML = `QR Code Detected: <br> <strong>${decodedText}</strong>`;
+
+                    // Check if scanned text is a URL
+                    if (decodedText.match(/^(https?:\/\/[^\s]+)/)) {
+                        setTimeout(() => {
+                            window.open(decodedText, "_blank"); // Open in a new tab
+                        }, 1000);
+                    }
                 },
                 (errorMessage) => {
                     console.log(errorMessage); // Ignore scan errors
