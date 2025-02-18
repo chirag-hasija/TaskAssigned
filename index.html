@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Front & Rear Camera</title>
+    <title>QR Code Scanner</title>
+    <script src="https://unpkg.com/html5-qrcode"></script> <!-- QR Code Library -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -15,17 +16,16 @@
             margin: 0;
             background-color: #f0f0f0;
         }
-        .camera-container {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 20px;
-        }
-        video {
-            width: 300px;
-            height: 200px;
+        #reader {
+            width: 400px;
             border: 2px solid #ccc;
             border-radius: 10px;
+        }
+        #qr-result {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: green;
         }
         button {
             padding: 10px 20px;
@@ -35,7 +35,7 @@
             border-radius: 5px;
             background-color: #007bff;
             color: white;
-            margin: 5px;
+            margin: 10px;
         }
         button:hover {
             background-color: #0056b3;
@@ -43,75 +43,50 @@
     </style>
 </head>
 <body>
-    <button id="camera-button">Enable Camera</button>
-    <div id="choice-buttons" style="display: none;">
-        <button id="front-camera-button">Front Camera</button>
-        <button id="rear-camera-button">Rear Camera</button>
-        <button id="both-camera-button">Both Cameras</button>
-    </div>
-    <div class="camera-container">
-        <video id="front-camera" autoplay playsinline style="display: none;"></video>
-        <video id="rear-camera" autoplay playsinline style="display: none;"></video>
-    </div>
+    <button id="start-camera">Start QR Scanner</button>
+    <div id="reader" style="display:none;"></div>
+    <p id="qr-result"></p>
 
     <script>
-        const cameraButton = document.getElementById('camera-button');
-        const choiceButtons = document.getElementById('choice-buttons');
-        const frontCameraFeed = document.getElementById('front-camera');
-        const rearCameraFeed = document.getElementById('rear-camera');
-        const frontCameraButton = document.getElementById('front-camera-button');
-        const rearCameraButton = document.getElementById('rear-camera-button');
-        const bothCameraButton = document.getElementById('both-camera-button');
+        const startButton = document.getElementById('start-camera');
+        const qrResult = document.getElementById('qr-result');
 
-        let videoDevices = [];
+        async function startQRScanner() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
 
-        async function getCameras() {
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                videoDevices = devices.filter(device => device.kind === 'videoinput');
+            if (videoDevices.length === 0) {
+                alert('No camera found!');
+                return;
+            }
 
-                if (videoDevices.length === 0) {
-                    alert('No camera found!');
-                    return;
-                } else if (videoDevices.length === 1) {
-                    startCamera(videoDevices[0].deviceId, frontCameraFeed);
-                    frontCameraFeed.style.display = 'block';
-                    cameraButton.textContent = 'Camera Enabled';
-                } else {
-                    cameraButton.style.display = 'none';
-                    choiceButtons.style.display = 'block';
+            let backCamera = videoDevices.find(device => device.label.toLowerCase().includes('back'));
+            let frontCamera = videoDevices.find(device => device.label.toLowerCase().includes('front')) || videoDevices[0];
+
+            let selectedCamera = backCamera ? backCamera.deviceId : frontCamera.deviceId;
+
+            document.getElementById('reader').style.display = 'block';
+            startButton.style.display = 'none';
+
+            const html5QrCode = new Html5Qrcode("reader");
+
+            html5QrCode.start(
+                selectedCamera,
+                {
+                    fps: 10,    // Frames per second
+                    qrbox: 250  // Scanning area size
+                },
+                (decodedText) => {
+                    html5QrCode.stop(); // Stop scanning after detecting QR code
+                    qrResult.innerHTML = `QR Code Detected: <br> <strong>${decodedText}</strong>`;
+                },
+                (errorMessage) => {
+                    console.log(errorMessage); // Ignore scan errors
                 }
-            } catch (error) {
-                alert('Error accessing cameras: ' + error.message);
-            }
+            ).catch(err => alert("Error: " + err));
         }
 
-        async function startCamera(deviceId, videoElement) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { deviceId: { exact: deviceId } }
-                });
-                videoElement.srcObject = stream;
-                videoElement.style.display = 'block';
-            } catch (error) {
-                alert('Error accessing camera: ' + error.message);
-            }
-        }
-
-        cameraButton.addEventListener('click', getCameras);
-
-        frontCameraButton.addEventListener('click', () => {
-            startCamera(videoDevices[0].deviceId, frontCameraFeed);
-        });
-
-        rearCameraButton.addEventListener('click', () => {
-            startCamera(videoDevices[1].deviceId, rearCameraFeed);
-        });
-
-        bothCameraButton.addEventListener('click', () => {
-            startCamera(videoDevices[0].deviceId, frontCameraFeed);
-            startCamera(videoDevices[1].deviceId, rearCameraFeed);
-        });
+        startButton.addEventListener('click', startQRScanner);
     </script>
 </body>
 </html>
