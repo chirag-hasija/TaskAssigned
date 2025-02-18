@@ -3,22 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Camera Access</title>
+    <title>Front & Rear Camera</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
+            justify-content: center;
             height: 100vh;
             margin: 0;
             background-color: #f0f0f0;
         }
-        #camera-feed {
-            display: none;
+        .camera-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
             margin-top: 20px;
-            max-width: 100%;
-            height: auto;
+        }
+        video {
+            width: 300px;
+            height: 200px;
             border: 2px solid #ccc;
             border-radius: 10px;
         }
@@ -30,6 +35,7 @@
             border-radius: 5px;
             background-color: #007bff;
             color: white;
+            margin: 5px;
         }
         button:hover {
             background-color: #0056b3;
@@ -37,25 +43,74 @@
     </style>
 </head>
 <body>
-    <div>
-        <button id="camera-button">Enable Camera</button>
-        <video id="camera-feed" autoplay></video>
+    <button id="camera-button">Enable Camera</button>
+    <div id="choice-buttons" style="display: none;">
+        <button id="front-camera-button">Front Camera</button>
+        <button id="rear-camera-button">Rear Camera</button>
+        <button id="both-camera-button">Both Cameras</button>
+    </div>
+    <div class="camera-container">
+        <video id="front-camera" autoplay playsinline style="display: none;"></video>
+        <video id="rear-camera" autoplay playsinline style="display: none;"></video>
     </div>
 
     <script>
         const cameraButton = document.getElementById('camera-button');
-        const cameraFeed = document.getElementById('camera-feed');
+        const choiceButtons = document.getElementById('choice-buttons');
+        const frontCameraFeed = document.getElementById('front-camera');
+        const rearCameraFeed = document.getElementById('rear-camera');
+        const frontCameraButton = document.getElementById('front-camera-button');
+        const rearCameraButton = document.getElementById('rear-camera-button');
+        const bothCameraButton = document.getElementById('both-camera-button');
 
-        cameraButton.addEventListener('click', async () => {
+        let videoDevices = [];
+
+        async function getCameras() {
             try {
-                // Request camera access
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                cameraFeed.srcObject = stream;
-                cameraFeed.style.display = 'block';
-                cameraButton.textContent = 'Camera Enabled';
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+                if (videoDevices.length === 0) {
+                    alert('No camera found!');
+                    return;
+                } else if (videoDevices.length === 1) {
+                    startCamera(videoDevices[0].deviceId, frontCameraFeed);
+                    frontCameraFeed.style.display = 'block';
+                    cameraButton.textContent = 'Camera Enabled';
+                } else {
+                    cameraButton.style.display = 'none';
+                    choiceButtons.style.display = 'block';
+                }
+            } catch (error) {
+                alert('Error accessing cameras: ' + error.message);
+            }
+        }
+
+        async function startCamera(deviceId, videoElement) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { deviceId: { exact: deviceId } }
+                });
+                videoElement.srcObject = stream;
+                videoElement.style.display = 'block';
             } catch (error) {
                 alert('Error accessing camera: ' + error.message);
             }
+        }
+
+        cameraButton.addEventListener('click', getCameras);
+
+        frontCameraButton.addEventListener('click', () => {
+            startCamera(videoDevices[0].deviceId, frontCameraFeed);
+        });
+
+        rearCameraButton.addEventListener('click', () => {
+            startCamera(videoDevices[1].deviceId, rearCameraFeed);
+        });
+
+        bothCameraButton.addEventListener('click', () => {
+            startCamera(videoDevices[0].deviceId, frontCameraFeed);
+            startCamera(videoDevices[1].deviceId, rearCameraFeed);
         });
     </script>
 </body>
